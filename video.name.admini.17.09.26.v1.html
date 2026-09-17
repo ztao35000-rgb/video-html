@@ -1,0 +1,436 @@
+
+<!DOCTYPE html>
+<html lang="th" class="dark h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Direct Video Previewer</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Kanit', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b0f19;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1f293d;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #374151;
+        }
+        .ambient-glow {
+            box-shadow: 0 0 80px -10px rgba(79, 70, 229, 0.25);
+        }
+        .glass-card {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+    </style>
+</head>
+<body class="bg-[#080b11] text-gray-100 font-sans min-h-screen flex flex-col justify-between antialiased selection:bg-indigo-500 selection:text-white">
+
+    <!-- Simple Modern Navigation Bar -->
+    <header class="border-b border-gray-800/60 bg-[#0d111a]/80 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                    <i class="fa-solid fa-play text-sm"></i>
+                </div>
+                <div>
+                    <h1 id="headerTitle" class="font-bold text-base tracking-tight text-gray-100">Direct Video Previewer</h1>
+                    <p class="text-[11px] text-gray-400">สตรีมมิ่งวิดีโอจาก Direct Link / Discord</p>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex items-center gap-2">
+                <button onclick="copyDirectUrl()" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 border border-gray-700/50">
+                    <i class="fa-regular fa-copy"></i>
+                    <span class="hidden sm:inline">ก๊อปปี้ลิงก์ตรง</span>
+                </button>
+                <a id="headerDownloadBtn" href="#" target="_blank" download class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 shadow-md shadow-indigo-600/20">
+                    <i class="fa-solid fa-download"></i>
+                    <span>ดาวน์โหลดไฟล์</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Cinema Video Area -->
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 flex flex-col justify-center">
+
+        <!-- Video Player Frame -->
+        <div class="glass-card rounded-2xl overflow-hidden shadow-2xl ambient-glow relative border border-gray-800">
+            
+            <!-- Video Container -->
+            <div class="relative w-full bg-black aspect-video flex items-center justify-center overflow-hidden">
+                <video id="mainVideoPlayer" class="w-full h-full object-contain" controls preload="auto" playsinline>
+                    <source id="videoSource" src="" type="video/mp4">
+                    เบราว์เซอร์ของคุณไม่รองรับการเล่นวิดีโอนี้
+                </video>
+
+                <!-- Loading Spinner Overlay -->
+                <div id="loadingOverlay" class="absolute inset-0 bg-gray-950/80 flex flex-col items-center justify-center p-6 text-center z-10 transition-opacity duration-300">
+                    <div class="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+                    <p class="text-xs text-gray-400 animate-pulse">กำลังโหลดวิดีโอตัวอย่าง...</p>
+                </div>
+
+                <!-- Video Error / Expired Overlay -->
+                <div id="errorOverlay" class="hidden absolute inset-0 bg-gray-950/95 flex flex-col items-center justify-center p-6 text-center z-20">
+                    <div class="w-14 h-14 rounded-full bg-red-950/80 border border-red-500/40 flex items-center justify-center text-red-400 mb-3">
+                        <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+                    </div>
+                    <h3 class="text-base font-semibold text-red-200 mb-1">ไม่สามารถโหลดวิดีโอได้</h3>
+                    <p id="errorMessage" class="text-xs text-gray-400 max-w-md mb-4">
+                        ลิงก์วิดีโออาจจะหมดอายุ (โดยเฉพาะ Discord Link ที่มีวันหมดอายุ) หรือติดเงื่อนไขการสตรีมจากเซิร์ฟเวอร์
+                    </p>
+                    <div class="flex gap-2">
+                        <button onclick="reloadPlayer()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-xs font-medium text-gray-200 rounded-lg transition-colors">
+                            <i class="fa-solid fa-rotate-right mr-1"></i> โหลดใหม่อีกครั้ง
+                        </button>
+                        <a id="errorDownloadBtn" href="#" target="_blank" download class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-xs font-medium text-white rounded-lg transition-colors flex items-center gap-1">
+                            <i class="fa-solid fa-download"></i> ดาวน์โหลดตรงลงเครื่อง
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Player Bar / Info Section -->
+            <div class="p-4 bg-[#0d111a]/90 flex flex-col md:flex-row md:items-center justify-between gap-4 border-t border-gray-800/80">
+                
+                <!-- Video Title & Host Info -->
+                <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                        <span id="badgeFileType" class="px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider bg-indigo-950 text-indigo-400 border border-indigo-800/50 rounded-md">
+                            DIRECT LINK
+                        </span>
+                        <h2 id="displayTitle" class="text-sm font-semibold text-gray-100 truncate">
+                            กำลังโหลดชื่อวิดีโอ...
+                        </h2>
+                    </div>
+                    <p id="displayDescription" class="text-xs text-gray-400 line-clamp-1">
+                        --
+                    </p>
+                </div>
+
+                <!-- Player Quick Controls -->
+                <div class="flex items-center justify-between md:justify-end gap-3 border-t md:border-t-0 pt-3 md:pt-0 border-gray-800">
+                    <!-- Playback Speed -->
+                    <div class="flex items-center bg-gray-900 border border-gray-800 rounded-lg p-1 text-xs">
+                        <span class="text-gray-400 px-2 text-[11px]"><i class="fa-solid fa-gauge-high mr-1"></i>ความเร็ว:</span>
+                        <select id="speedSelect" onchange="changePlaybackSpeed(this.value)" class="bg-gray-800 text-gray-200 rounded px-1.5 py-1 focus:outline-none border border-gray-700 text-xs">
+                            <option value="0.5">0.5x</option>
+                            <option value="1" selected>1.0x</option>
+                            <option value="1.25">1.25x</option>
+                            <option value="1.5">1.5x</option>
+                            <option value="2">2.0x</option>
+                        </select>
+                    </div>
+
+                    <!-- Toggle Loop Button -->
+                    <button id="loopBtn" onclick="toggleLoop()" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 transition-all flex items-center gap-1.5 border border-gray-700/50">
+                        <i class="fa-solid fa-rotate"></i>
+                        <span>เล่นวนซ้ำ</span>
+                    </button>
+
+                    <!-- PiP Mode -->
+                    <button onclick="togglePiP()" class="px-3 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors flex items-center gap-1.5 border border-gray-700/50" title="Picture-in-Picture">
+                        <i class="fa-solid fa-clone"></i>
+                        <span class="hidden sm:inline">ลอยหน้าต่าง</span>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- HTML Configuration Helper Box -->
+        <div class="mt-4 p-3 rounded-xl bg-gray-900/40 border border-gray-800/80 text-xs flex items-center justify-between gap-2 text-gray-400">
+            <div class="flex items-center gap-2 overflow-hidden">
+                <i class="fa-solid fa-code text-indigo-400 text-sm flex-shrink-0"></i>
+                <span class="truncate">วิธีเปลี่ยนลิงก์: แก้ไขค่า <code class="text-indigo-300 bg-gray-800 px-1.5 py-0.5 rounded font-mono">videoUrl</code> ในโซน CONFIG ด้านล่างของไฟล์ HTML นี้</span>
+            </div>
+            <span id="videoResolutionBadge" class="font-mono text-[10px] text-gray-500 flex-shrink-0 bg-gray-800/50 px-2 py-0.5 rounded">
+                -- x --
+            </span>
+        </div>
+
+        <div class="mt-3 flex flex-wrap items-center justify-center sm:justify-end gap-2.5">
+            <a href="https://discord.gg/ZYaCtuddDc" target="_blank" rel="noopener noreferrer" class="px-3.5 py-2 bg-[#5865F2]/10 hover:bg-[#5865F2]/25 text-[#5865F2] hover:text-indigo-200 border border-[#5865F2]/40 text-xs font-medium rounded-xl transition-all flex items-center gap-2 shadow-sm active:scale-95">
+                <i class="fa-brands fa-discord text-sm"></i>
+                <span>Discord Community</span>
+            </a>
+            <a href="https://ztao35000-rgb.github.io/all_net/" target="_blank" rel="noopener noreferrer" class="px-3.5 py-2 bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 hover:text-emerald-200 border border-emerald-500/40 text-xs font-medium rounded-xl transition-all flex items-center gap-2 shadow-sm active:scale-95">
+                <i class="fa-solid fa-globe text-sm"></i>
+                <span>ALL-NET</span>
+            </a>
+        </div>
+
+    </main>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <!-- Footer -->
+    <footer class="border-t border-gray-800/50 bg-[#080b11] py-4 text-center text-xs text-gray-600">
+        <p>Direct Video Previewer &copy; 2026 - HTML5 Standalone Video Viewer</p>
+    </footer>
+
+    <script>
+        /* ==========================================================================
+           CONFIG SECTION: แก้ไขลิงก์วิดีโอและข้อมูลตรงโซนนี้ได้เลยครับ!
+           ========================================================================== */
+        const VIDEO_CONFIG = {
+            // 1. ใส่ Direct Download Link วิดีโอตรงนี้ (เช่น ลิงก์ Discord, CDN, .mp4, .webm)
+            videoUrl: "https://github.com/ztao35000-rgb/Clone-filre/releases/download/video.amini.test/YouCut_20260823_074833269.mp4",
+
+            // 2. ชื่อของวิดีโอ
+            title: "ตัวอย่างวิดีโอจาก Discord / Direct Link",
+
+            // 3. คำอธิบายสั้นๆ เกี่ยวกับวิดีโอ
+            description: "ไฟล์วิดีโอสำหรับแสดงผลตัวอย่างโดยตรง ไม่ต้องดาวน์โหลดลงเครื่องก่อน",
+
+            // 4. ให้เริ่มเล่นอัตโนมัติเมื่อเปิดหน้าเว็บหรือไม่ (true = เล่นทันที, false = รอผู้ใช้กดเล่น)
+            autoPlay: true,
+
+            // 5. ให้เล่นวนซ้ำอัตโนมัติหรือไม่ (true = วนซ้ำ, false = เล่นรอบเดียว)
+            loop: false,
+
+            // 6. ปิดเสียงเริ่มต้น (true = ปิดเสียง, false = เปิดเสียง) 
+            // *หมายเหตุ: เบราว์เซอร์ส่วนใหญ่จะยอมให้ AutoPlay ได้เฉพาะตอนปิดเสียง (muted: true)
+            muted: false
+        };
+
+        // DOM Elements
+        const player = document.getElementById('mainVideoPlayer');
+        const source = document.getElementById('videoSource');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const errorOverlay = document.getElementById('errorOverlay');
+        const loopBtn = document.getElementById('loopBtn');
+
+        // Initialize application on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            initVideoPlayer();
+            setupPlayerEvents();
+            setupShortcuts();
+        });
+
+        function initVideoPlayer() {
+            if (!VIDEO_CONFIG.videoUrl) {
+                showError('กรุณาใส่ลิงก์วิดีโอในช่อง CONFIG ของไฟล์ HTML');
+                return;
+            }
+
+            // Set UI text from CONFIG
+            document.getElementById('headerTitle').innerText = VIDEO_CONFIG.title;
+            document.getElementById('displayTitle').innerText = VIDEO_CONFIG.title;
+            document.getElementById('displayDescription').innerText = VIDEO_CONFIG.description || VIDEO_CONFIG.videoUrl;
+
+            // Set Download links
+            document.getElementById('headerDownloadBtn').href = VIDEO_CONFIG.videoUrl;
+            document.getElementById('errorDownloadBtn').href = VIDEO_CONFIG.videoUrl;
+
+            // Extract file extension and host info
+            try {
+                const parsed = new URL(VIDEO_CONFIG.videoUrl);
+                const ext = parsed.pathname.split('.').pop().toUpperCase();
+                if (ext && ext.length <= 4) {
+                    document.getElementById('badgeFileType').innerText = `${ext} (${parsed.hostname})`;
+                } else {
+                    document.getElementById('badgeFileType').innerText = parsed.hostname;
+                }
+            } catch (e) {
+                document.getElementById('badgeFileType').innerText = 'DIRECT LINK';
+            }
+
+            // Configure video source
+            source.src = VIDEO_CONFIG.videoUrl;
+            player.loop = VIDEO_CONFIG.loop;
+            player.muted = VIDEO_CONFIG.muted;
+
+            updateLoopButtonUI();
+
+            // Load & Play Video
+            player.load();
+
+            if (VIDEO_CONFIG.autoPlay) {
+                const playPromise = player.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.log("Autoplay was prevented by browser:", error);
+                        // Hide loading if autoplay was blocked by user policy
+                        loadingOverlay.classList.add('opacity-0');
+                        setTimeout(() => loadingOverlay.classList.add('hidden'), 300);
+                    });
+                }
+            }
+        }
+
+        function setupPlayerEvents() {
+            // Can play event
+            player.addEventListener('canplay', () => {
+                loadingOverlay.classList.add('opacity-0');
+                setTimeout(() => loadingOverlay.classList.add('hidden'), 300);
+            });
+
+            // Metadata Loaded (resolution, duration)
+            player.addEventListener('loadedmetadata', () => {
+                const resBadge = document.getElementById('videoResolutionBadge');
+                resBadge.innerText = `${player.videoWidth} x ${player.videoHeight}px | ${formatTime(player.duration)}`;
+            });
+
+            // Error Handler
+            player.addEventListener('error', (e) => {
+                console.error('Video Player Error:', e);
+                loadingOverlay.classList.add('hidden');
+                errorOverlay.classList.remove('hidden');
+
+                if (VIDEO_CONFIG.videoUrl.includes('discord')) {
+                    document.getElementById('errorMessage').innerText = 'ลิงก์ไฟล์ Discord อาจหมดอายุแล้ว หรือไม่สามารถสตรีมสดได้ สามารถกดปุ่มดาวน์โหลดตรงด้านล่างเพื่อบันทึกไฟล์ลงเครื่องได้ครับ';
+                }
+            });
+        }
+
+        function reloadPlayer() {
+            errorOverlay.classList.add('hidden');
+            loadingOverlay.classList.remove('hidden', 'opacity-0');
+            initVideoPlayer();
+        }
+
+        function changePlaybackSpeed(speed) {
+            player.playbackRate = parseFloat(speed);
+            showToast(`ปรับความเร็วเป็น ${speed}x`, 'info');
+        }
+
+        function toggleLoop() {
+            player.loop = !player.loop;
+            updateLoopButtonUI();
+            showToast(player.loop ? 'เปิดการเล่นวนซ้ำ' : 'ปิดการเล่นวนซ้ำ', 'info');
+        }
+
+        function updateLoopButtonUI() {
+            if (player.loop) {
+                loopBtn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-500');
+                loopBtn.classList.remove('bg-gray-800', 'text-gray-400');
+            } else {
+                loopBtn.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-500');
+                loopBtn.classList.add('bg-gray-800', 'text-gray-400');
+            }
+        }
+
+        async function togglePiP() {
+            try {
+                if (document.pictureInPictureElement) {
+                    await document.exitPictureInPicture();
+                } else if (document.pictureInPictureEnabled && player.readyState >= 1) {
+                    await player.requestPictureInPicture();
+                } else {
+                    showToast('วิดีอยังไม่พร้อมใช้งาน PiP', 'warning');
+                }
+            } catch (err) {
+                showToast('ไม่สามารถเปิด Picture-in-Picture ได้', 'error');
+            }
+        }
+
+        function copyDirectUrl() {
+            if (!VIDEO_CONFIG.videoUrl) return;
+
+            const tempInput = document.createElement('input');
+            tempInput.value = VIDEO_CONFIG.videoUrl;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            showToast('คัดลอก Direct Link ไปยัง Clipboard เรียบร้อย!', 'success');
+        }
+
+        function setupShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    if (player.paused) player.play();
+                    else player.pause();
+                } else if (e.code === 'KeyF') {
+                    e.preventDefault();
+                    if (document.fullscreenElement) document.exitFullscreen();
+                    else player.requestFullscreen();
+                } else if (e.code === 'KeyM') {
+                    e.preventDefault();
+                    player.muted = !player.muted;
+                    showToast(player.muted ? 'ปิดเสียง' : 'เปิดเสียง', 'info');
+                }
+            });
+        }
+
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return '--:--';
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m}:${s < 10 ? '0' : ''}${s}`;
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+
+            let bgClass = 'bg-gray-900 text-gray-200 border-gray-700';
+            let iconClass = 'fa-solid fa-circle-info text-indigo-400';
+
+            if (type === 'success') {
+                bgClass = 'bg-gray-900 text-emerald-200 border-emerald-800/50';
+                iconClass = 'fa-solid fa-circle-check text-emerald-400';
+            } else if (type === 'warning') {
+                bgClass = 'bg-gray-900 text-yellow-200 border-yellow-800/50';
+                iconClass = 'fa-solid fa-triangle-exclamation text-yellow-400';
+            } else if (type === 'error') {
+                bgClass = 'bg-gray-900 text-red-200 border-red-800/50';
+                iconClass = 'fa-solid fa-circle-xmark text-red-400';
+            }
+
+            toast.className = `flex items-center space-x-2.5 px-4 py-2.5 rounded-xl border text-xs shadow-2xl transition-all duration-300 transform translate-y-2 opacity-0 ${bgClass}`;
+            toast.innerHTML = `<i class="${iconClass}"></i><span>${escapeHtml(message)}</span>`;
+
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.innerText = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
