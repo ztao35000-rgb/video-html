@@ -38,9 +38,9 @@
         }
         .transparent-grid {
             background-color: #0b0f17;
-            background-image: linear-gradient(45deg, #141b2d 25%, transparent 25%), 
-                              linear-gradient(-45deg, #141b2d 25%, transparent 25%), 
-                              linear-gradient(45deg, transparent 75%, #141b2d 75%), 
+            background-image: linear-gradient(45deg, #141b2d 25%, transparent 25%),
+                              linear-gradient(-45deg, #141b2d 25%, transparent 25%),
+                              linear-gradient(45deg, transparent 75%, #141b2d 75%),
                               linear-gradient(-45deg, transparent 75%, #141b2d 75%);
             background-size: 20px 20px;
             background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
@@ -55,6 +55,7 @@
         }
         .viewer-viewport {
             cursor: grab;
+            touch-action: none;
         }
         .viewer-viewport:active {
             cursor: grabbing;
@@ -181,6 +182,18 @@
                 <span class="truncate">วิธีเปลี่ยนลิงก์: แก้ไขค่า <code class="text-emerald-300 bg-gray-800 px-1.5 py-0.5 rounded font-mono">imageUrl</code> ในโซน CONFIG ด้านล่าง</span>
             </div>
             <span class="text-[11px] text-gray-500 hidden sm:inline">ใช้เมาส์คลิกลากเพื่อย้าย และหมุนลูกกลิ้งเพื่อ Zoom</span>
+        </div>
+
+        <!-- Community Links -->
+        <div class="mt-3 flex flex-wrap items-center justify-center sm:justify-end gap-2.5">
+            <a href="https://discord.gg/ZYaCtuddDc" target="_blank" rel="noopener noreferrer" class="px-3.5 py-2 bg-[#5865F2]/10 hover:bg-[#5865F2]/25 text-[#5865F2] hover:text-indigo-200 border border-[#5865F2]/40 text-xs font-medium rounded-xl transition-all flex items-center gap-2 shadow-sm active:scale-95">
+                <i class="fa-brands fa-discord text-sm"></i>
+                <span>Discord Community</span>
+            </a>
+            <a href="https://ztao35000-rgb.github.io/all_net/" target="_blank" rel="noopener noreferrer" class="px-3.5 py-2 bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 hover:text-emerald-200 border border-emerald-500/40 text-xs font-medium rounded-xl transition-all flex items-center gap-2 shadow-sm active:scale-95">
+                <i class="fa-solid fa-globe text-sm"></i>
+                <span>ALL-NET</span>
+            </a>
         </div>
 
     </main>
@@ -317,6 +330,7 @@
                 }
             });
 
+            // Mouse Drag
             viewport.addEventListener('mousedown', (e) => {
                 isDragging = true;
                 startX = e.clientX - posX;
@@ -333,6 +347,26 @@
             window.addEventListener('mouseup', () => {
                 isDragging = false;
             });
+
+            // Touch Drag (Mobile)
+            viewport.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    isDragging = true;
+                    startX = e.touches[0].clientX - posX;
+                    startY = e.touches[0].clientY - posY;
+                }
+            }, { passive: true });
+
+            window.addEventListener('touchmove', (e) => {
+                if (!isDragging || e.touches.length !== 1) return;
+                posX = e.touches[0].clientX - startX;
+                posY = e.touches[0].clientY - startY;
+                updateTransform();
+            }, { passive: true });
+
+            window.addEventListener('touchend', () => {
+                isDragging = false;
+            });
         }
 
         function copyDirectUrl() {
@@ -344,6 +378,12 @@
             document.execCommand('copy');
             document.body.removeChild(tempInput);
             showToast('คัดลอก Direct Link เรียบร้อย!', 'success');
+        }
+
+        function showError(msg) {
+            loadingOverlay.classList.add('hidden');
+            errorOverlay.classList.remove('hidden');
+            document.getElementById('errorMessage').innerText = msg;
         }
 
         function showToast(message, type = 'info') {
