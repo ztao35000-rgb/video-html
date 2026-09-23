@@ -1,0 +1,101 @@
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabbed Iframe Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Prompt', sans-serif;
+        }
+        .iframe-container {
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 85px);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 flex flex-col h-screen m-0 overflow-hidden">
+
+    <header class="bg-slate-800 border-b border-slate-700 px-4 py-3 flex flex-wrap items-center justify-between shadow-md z-10">
+        <div class="flex items-center space-x-2 mb-2 sm:mb-0">
+            <span class="bg-indigo-600 text-white font-bold px-3 py-1.5 rounded-lg text-sm shadow flex items-center gap-1.5">
+                <i class="fa-solid fa-layer-group"></i> Portal
+            </span>
+            <span class="text-xs text-slate-400 hidden md:inline">กดปุ่มภายนอกเพื่อเปิดหน้าเว็บใหม่ หรือเลือก Web Back End เพื่อดูใน Iframe</span>
+        </div>
+
+        <!-- Navigation Buttons Container -->
+        <nav class="flex space-x-2 overflow-x-auto pb-1 sm:pb-0">
+            <!-- External Button 1: ALL NET -->
+            <a href="https://ztao35000-rgb.github.io/all_net/" target="_blank" rel="noopener noreferrer"
+                class="px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white shadow">
+                <i class="fa-solid fa-globe"></i> ALL NET <i class="fa-solid fa-arrow-up-right-from-square text-xs opacity-70"></i>
+            </a>
+            
+            <!-- External Button 2: Discord -->
+            <a href="https://discord.gg/ZYaCtuddDc" target="_blank" rel="noopener noreferrer"
+                class="px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white shadow">
+                <i class="fa-brands fa-discord"></i> Discord <i class="fa-solid fa-arrow-up-right-from-square text-xs opacity-70"></i>
+            </a>
+            
+            <!-- External Button 3: Play ZEP Quiz -->
+            <a href="https://quiz.zep.us/th/play/r764Xg" target="_blank" rel="noopener noreferrer"
+                class="px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white shadow">
+                <i class="fa-solid fa-gamepad"></i> Play ZEP Quiz <i class="fa-solid fa-arrow-up-right-from-square text-xs opacity-70"></i>
+            </a>
+
+            <!-- Iframe Toggle Tab: Web Back End -->
+            <button onclick="switchTab('web.back.end.html')" 
+                id="tab-btn-backend" 
+                class="px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 bg-indigo-600 text-white shadow-lg shadow-indigo-600/30">
+                <i class="fa-solid fa-server"></i> Web Back End
+            </button>
+        </nav>
+    </header>
+
+    <main class="iframe-container bg-slate-950 flex-grow relative">
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="absolute inset-0 bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center transition-opacity duration-300 z-0">
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent mb-3"></div>
+            <p class="text-slate-300 text-sm font-medium animate-pulse">กำลังโหลดเนื้อหา Web Back End...</p>
+        </div>
+
+        <iframe id="main-iframe" 
+            src="web.back.end.html" 
+            class="w-full h-full border-0 relative z-10"
+            onload="hideLoading()"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals">
+        </iframe>
+    </main>
+
+    <script>
+        function switchTab(url) {
+            showLoading();
+            const iframe = document.getElementById('main-iframe');
+            iframe.src = url;
+        }
+
+        function showLoading() {
+            const loader = document.getElementById('loading-overlay');
+            loader.style.opacity = '1';
+            loader.style.pointerEvents = 'auto';
+        }
+
+        function hideLoading() {
+            const loader = document.getElementById('loading-overlay');
+            loader.style.opacity = '0';
+            loader.style.pointerEvents = 'none';
+        }
+
+        // Fallback timer or event listener
+        document.getElementById('main-iframe').addEventListener('load', () => {
+            hideLoading();
+        });
+    </script>
+</body>
+</html>
