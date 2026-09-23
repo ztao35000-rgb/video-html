@@ -1,0 +1,585 @@
+
+<!DOCTYPE html>
+<html lang="th" class="dark h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Direct HTML & iFrame Previewer (RAM Fetch Engine)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Kanit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b0f19;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1f293d;
+            border-radius: 4px;
+        }
+        .transparent-grid {
+            background-color: #0b0f17;
+            background-image: linear-gradient(45deg, #141b2d 25%, transparent 25%),
+                              linear-gradient(-45deg, #141b2d 25%, transparent 25%),
+                              linear-gradient(45deg, transparent 75%, #141b2d 75%),
+                              linear-gradient(-45deg, transparent 75%, #141b2d 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+        .solid-dark {
+            background-color: #05070c;
+        }
+        .glass-card {
+            background: rgba(17, 24, 39, 0.8);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .device-container {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+</head>
+<body class="bg-[#080b11] text-gray-100 font-sans min-h-screen flex flex-col justify-between antialiased selection:bg-emerald-500 selection:text-white">
+
+    <header class="border-b border-gray-800/60 bg-[#0d111a]/80 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+                    <i class="fa-solid fa-memory text-sm"></i>
+                </div>
+                <div>
+                    <h1 id="headerTitle" class="font-bold text-base tracking-tight text-gray-100 truncate max-w-[200px] sm:max-w-md">HTML RAM Previewer</h1>
+                    <p class="text-[11px] text-gray-400">โหลด HTML ลง RAM ก่อนแล้วรันผ่าน Blob iFrame</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <a href="https://quiz.zep.us/th/play/r764Xg" target="_blank" rel="noopener noreferrer" class="relative group px-4 py-2 bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-purple-600/40 active:scale-95 flex items-center gap-2 border border-purple-300/30">
+                    <span class="relative flex h-2.5 w-2.5">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-300 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-pink-200"></span>
+                    </span>
+                    <i class="fa-solid fa-gamepad text-sm animate-bounce"></i>
+                    <span>เล่น ZEP Quiz</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px] opacity-80"></i>
+                </a>
+                <button onclick="toggleRenderMode()" id="btnToggleMode" class="px-3 py-1.5 bg-emerald-950 hover:bg-emerald-900 text-emerald-400 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 border border-emerald-700/50 active:scale-95">
+                    <i class="fa-solid fa-layer-group"></i>
+                    <span id="lblModeName" class="hidden sm:inline">โหมด: Direct iFrame</span>
+                </button>
+                <button onclick="toggleCodeDrawer()" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-emerald-400 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 border border-gray-700/50 active:scale-95">
+                    <i class="fa-solid fa-code"></i>
+                    <span class="hidden sm:inline">ดูโค้ด HTML ใน RAM</span>
+                </button>
+                <button onclick="copyDirectUrl()" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 border border-gray-700/50 active:scale-95">
+                    <i class="fa-regular fa-copy"></i>
+                    <span class="hidden md:inline">คัดลอก URL</span>
+                </button>
+                <a id="headerExternalBtn" href="#" target="_blank" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 shadow-md shadow-emerald-600/20 active:scale-95">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    <span>เปิดดาวน์โหลดตรง</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex flex-col justify-center">
+
+        <!-- Main Viewing Card -->
+        <div class="glass-card rounded-2xl overflow-hidden shadow-2xl relative border border-gray-800 flex flex-col">
+            
+            <div class="px-4 py-2.5 bg-gray-900/90 border-b border-gray-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+                
+                <!-- Device Mode Presets -->
+                <div class="flex items-center gap-1 bg-gray-950 p-1 rounded-lg border border-gray-800">
+                    <button onclick="setDeviceMode('full')" id="btnDeviceFull" class="px-2.5 py-1 rounded text-emerald-400 bg-gray-800 font-medium transition flex items-center gap-1.5" title="เต็มความกว้าง (100%)">
+                        <i class="fa-solid fa-desktop"></i>
+                        <span class="hidden sm:inline text-[11px]">Desktop</span>
+                    </button>
+                    <button onclick="setDeviceMode('tablet')" id="btnDeviceTablet" class="px-2.5 py-1 rounded text-gray-400 hover:text-white transition flex items-center gap-1.5" title="แท็บเล็ต (768px)">
+                        <i class="fa-solid fa-tablet-screen-button"></i>
+                        <span class="hidden sm:inline text-[11px]">Tablet</span>
+                    </button>
+                    <button onclick="setDeviceMode('mobile')" id="btnDeviceMobile" class="px-2.5 py-1 rounded text-gray-400 hover:text-white transition flex items-center gap-1.5" title="มือถือ (375px)">
+                        <i class="fa-solid fa-mobile-screen"></i>
+                        <span class="hidden sm:inline text-[11px]">Mobile</span>
+                    </button>
+                </div>
+
+                <!-- iFrame Actions -->
+                <div class="flex items-center gap-1 bg-gray-950 p-1 rounded-lg border border-gray-800">
+                    <button onclick="reRenderFromRam()" class="p-1.5 hover:bg-gray-800 rounded text-gray-300 transition" title="เรนเดอร์ซ้ำจาก RAM">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+                    <button onclick="toggleFullscreen()" class="p-1.5 hover:bg-gray-800 rounded text-gray-300 transition" title="ขยายเต็มหน้าจอ">
+                        <i class="fa-solid fa-expand"></i>
+                    </button>
+                    <button onclick="toggleBackground()" class="p-1.5 hover:bg-gray-800 rounded text-gray-300 transition" title="สลับพื้นหลัง">
+                        <i class="fa-solid fa-border-all"></i>
+                    </button>
+                </div>
+
+                <!-- Resolution & RAM Stats -->
+                <div class="flex items-center gap-2">
+                    <div id="ramSizeBadge" class="font-mono text-[11px] px-2.5 py-1 bg-gray-950 border border-gray-800 rounded-lg text-teal-400">
+                        RAM Status: Empty
+                    </div>
+                    <div id="resolutionBadge" class="font-mono text-[11px] px-2.5 py-1 bg-gray-950 border border-gray-800 rounded-lg text-emerald-400 font-semibold">
+                        100% (Responsive)
+                    </div>
+                </div>
+            </div>
+
+            <!-- Viewport Area -->
+            <div id="viewport" class="relative w-full transparent-grid flex items-start justify-center p-2 sm:p-4">
+                
+                <div id="deviceWrapper" class="device-container w-full h-auto bg-gray-950 rounded-xl overflow-hidden border border-gray-800 shadow-2xl relative flex flex-col">
+                    
+                    <iframe id="mainIframe" class="w-full h-[9000px] border-0 bg-white" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
+
+                    <div class="absolute top-3 right-3 z-30 pointer-events-auto">
+                        <a href="https://quiz.zep.us/th/play/r764Xg" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 bg-purple-950/90 hover:bg-purple-900 text-purple-200 border border-purple-500/50 text-xs font-medium rounded-lg backdrop-blur-md transition flex items-center gap-1.5 shadow-xl hover:scale-105 active:scale-95">
+                            <i class="fa-solid fa-gamepad text-purple-400"></i>
+                            <span>เปิด ZEP Quiz บนแท็บใหม่</span>
+                        </a>
+                    </div>
+
+                    <!-- Loading Progress Overlay -->
+                    <div id="loadingOverlay" class="absolute inset-0 bg-gray-950/90 flex flex-col items-center justify-center p-6 text-center z-10 transition-opacity duration-300">
+                        <div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                        <h4 id="loadingStepText" class="text-xs text-emerald-400 font-medium animate-pulse mb-1">กำลังดาวน์โหลด HTML เข้า RAM...</h4>
+                        <p id="loadingSubText" class="text-[11px] text-gray-400 max-w-sm truncate">กำลังเชื่อมต่อโฮสต์ปลายทาง</p>
+                    </div>
+
+                    <!-- Error Overlay -->
+                    <div id="errorOverlay" class="hidden absolute inset-0 bg-gray-950/95 flex flex-col items-center justify-center p-6 text-center z-20">
+                        <div class="w-12 h-12 rounded-full bg-red-950/80 border border-red-500/40 flex items-center justify-center text-red-400 mb-3">
+                            <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+                        </div>
+                        <h3 class="text-sm font-semibold text-red-200 mb-1">ดาวน์โหลด HTML ลง RAM ไม่สำเร็จ</h3>
+                        <p id="errorMessage" class="text-xs text-gray-400 max-w-md mb-4 leading-relaxed">
+                            เกิดข้อผิดพลาดในการดึงข้อมูลจาก URL
+                        </p>
+                        <div class="flex items-center gap-2">
+                            <button onclick="loadHtmlToRam(true)" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-xs font-medium text-white rounded-lg transition-colors flex items-center gap-1.5 shadow-lg shadow-amber-600/20">
+                                <i class="fa-solid fa-shield-halved"></i> ลองใช้ CORS Proxy
+                            </button>
+                            <a id="errorExternalBtn" href="#" target="_blank" class="px-3.5 py-2 bg-gray-800 hover:bg-gray-700 text-xs font-medium text-gray-200 rounded-lg transition-colors flex items-center gap-1.5 border border-gray-700">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i> ดาวน์โหลดตรง
+                            </a>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Footer Details Bar -->
+            <div class="p-4 bg-[#0d111a]/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-gray-800">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span id="badgeFileType" class="px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider bg-emerald-950 text-emerald-400 border border-emerald-800/50 rounded-md">
+                            RAM INJECTED
+                        </span>
+                        <h2 id="displayTitle" class="text-sm font-semibold text-gray-100 truncate">
+                            กำลังเตรียมระบบ...
+                        </h2>
+                    </div>
+                    <p id="displayDescription" class="text-xs text-gray-400 mt-1 line-clamp-1 font-mono">--</p>
+                </div>
+
+                <div class="flex items-center gap-2 font-mono text-xs text-gray-400 bg-gray-900 border border-gray-800 px-3 py-1.5 rounded-lg flex-shrink-0">
+                    <i class="fa-solid fa-microchip text-emerald-400"></i>
+                    <span id="ramUsageStats">Loaded in RAM: 0 KB</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Code Inspector Modal Drawer -->
+        <div id="codeDrawer" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="glass-card w-full max-w-4xl h-[80vh] rounded-2xl flex flex-col overflow-hidden border border-gray-700 shadow-2xl">
+                <div class="px-4 py-3 bg-gray-900 border-b border-gray-800 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-code text-emerald-400"></i>
+                        <h3 class="text-xs font-bold text-gray-200 uppercase tracking-wider">HTML Source Code in RAM</h3>
+                    </div>
+                    <button onclick="toggleCodeDrawer()" class="text-gray-400 hover:text-white p-1 rounded-lg">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+                <div class="flex-1 p-4 overflow-auto bg-gray-950">
+                    <textarea id="rawCodeArea" class="w-full h-full bg-transparent text-emerald-400 font-mono text-xs leading-relaxed focus:outline-none resize-none" readonly></textarea>
+                </div>
+                <div class="p-3 bg-gray-900 border-t border-gray-800 flex items-center justify-between text-xs">
+                    <span class="text-gray-400">คุณสามารถตรวจสอบโค้ดที่ดึงลง RAM ได้ที่นี่</span>
+                    <button onclick="copyRawCode()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition active:scale-95">
+                        <i class="fa-regular fa-copy"></i> คัดลอกโค้ดทั้งหมด
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Info Banner -->
+        <div class="mt-4 p-3 rounded-xl bg-gray-900/40 border border-gray-800/80 text-xs flex items-center justify-between gap-2 text-gray-400">
+            <div class="flex items-center gap-2 overflow-hidden">
+                <i class="fa-solid fa-circle-check text-emerald-400 text-sm flex-shrink-0"></i>
+                <span class="truncate">ระบบจะทำการดึงไฟล์ลง RAM -> แทรก <code class="text-emerald-300 bg-gray-800 px-1 py-0.5 rounded font-mono">&lt;base&gt;</code> Tag -> แปลงเป็น Blob แล้วเรนเดอร์ทันที ป้องกันอาการจอขาวจานการบังคับดาวน์โหลด</span>
+            </div>
+            <span class="text-[11px] text-gray-500 hidden sm:inline">รองรับ GitHub Releases & Direct HTML Links</span>
+        </div>
+
+        <!-- Community Links -->
+        <div class="mt-3 flex flex-wrap items-center justify-center sm:justify-end gap-2.5">
+            <a href="https://discord.gg/ZYaCtuddDc" target="_blank" rel="noopener noreferrer" class="px-3.5 py-2 bg-[#5865F2]/10 hover:bg-[#5865F2]/25 text-[#5865F2] hover:text-indigo-200 border border-[#5865F2]/40 text-xs font-medium rounded-xl transition-all flex items-center gap-2 shadow-sm active:scale-95">
+                <i class="fa-brands fa-discord text-sm"></i>
+                <span>Discord Community</span>
+            </a>
+            <a href="https://ztao35000-rgb.github.io/all_net/" target="_blank" rel="noopener noreferrer" class="px-3.5 py-2 bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 hover:text-emerald-200 border border-emerald-500/40 text-xs font-medium rounded-xl transition-all flex items-center gap-2 shadow-sm active:scale-95">
+                <i class="fa-solid fa-globe text-sm"></i>
+                <span>ALL-NET</span>
+            </a>
+        </div>
+
+    </main>
+
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <footer class="border-t border-gray-800/50 bg-[#080b11] py-4 text-center text-xs text-gray-600">
+        <p>Direct HTML & iFrame Previewer &copy; 2026 - RAM Fetch Engine</p>
+    </footer>
+
+    <script>
+        /* ==========================================================================
+           CONFIG SECTION - กำหนดค่าตั้งต้น
+           ========================================================================== */
+        const HTML_CONFIG = {
+            iframeUrl: "https://ztao35000-rgb.github.io/video-html/quiz.zep.archive.1.html",
+            title: "ZEP Archive Quiz Previewer",
+            description: "เปิดผ่าน GitHub Pages Direct iFrame (โหลดเร็ว เสถียร ไม่ติดดาวน์โหลด)"
+        };
+
+        const iframe = document.getElementById('mainIframe');
+        const viewport = document.getElementById('viewport');
+        const deviceWrapper = document.getElementById('deviceWrapper');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const errorOverlay = document.getElementById('errorOverlay');
+
+        let currentUrl = HTML_CONFIG.iframeUrl;
+        let cachedHtmlContent = "";
+        let blobObjectUrl = null;
+        let isDirectMode = true; // เริ่มต้นด้วย Direct iFrame Mode สำหรับ GitHub Pages
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initViewer();
+        });
+
+        function initViewer() {
+            document.getElementById('headerTitle').innerText = HTML_CONFIG.title;
+            document.getElementById('displayTitle').innerText = HTML_CONFIG.title;
+            document.getElementById('displayDescription').innerText = HTML_CONFIG.description || currentUrl;
+
+            document.getElementById('headerExternalBtn').href = currentUrl;
+            document.getElementById('errorExternalBtn').href = currentUrl;
+
+            updateModeUI();
+            loadContent();
+        }
+
+        function toggleRenderMode() {
+            isDirectMode = !isDirectMode;
+            updateModeUI();
+            loadContent();
+            showToast(isDirectMode ? 'สลับเป็นโหมด Direct iFrame (เหมาะสำหรับ GitHub Pages)' : 'สลับเป็นโหมด RAM Fetch Engine', 'info');
+        }
+
+        function updateModeUI() {
+            const lbl = document.getElementById('lblModeName');
+            const badge = document.getElementById('badgeFileType');
+            if (isDirectMode) {
+                lbl.innerText = 'โหมด: Direct iFrame';
+                badge.innerText = 'GITHUB PAGES / DIRECT';
+                badge.className = 'px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider bg-blue-950 text-blue-400 border border-blue-800/50 rounded-md';
+            } else {
+                lbl.innerText = 'โหมด: RAM Fetch Engine';
+                badge.innerText = 'RAM INJECTED';
+                badge.className = 'px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider bg-emerald-950 text-emerald-400 border border-emerald-800/50 rounded-md';
+            }
+        }
+
+        function loadContent() {
+            if (isDirectMode) {
+                loadDirectIframe();
+            } else {
+                loadHtmlToRam();
+            }
+        }
+
+        /* โหลดหน้าเว็บโดยตรงใน iFrame สำหรับ GitHub Pages / Direct Host */
+        function loadDirectIframe() {
+            let targetUrl = currentUrl;
+
+            document.getElementById('headerExternalBtn').href = targetUrl;
+            document.getElementById('errorExternalBtn').href = targetUrl;
+            document.getElementById('displayDescription').innerText = targetUrl;
+
+            loadingOverlay.classList.remove('hidden', 'opacity-0');
+            errorOverlay.classList.add('hidden');
+            document.getElementById('loadingStepText').innerText = 'กำลังโหลดหน้าเว็บผ่าน Direct iFrame...';
+            document.getElementById('loadingSubText').innerText = targetUrl;
+
+            iframe.removeAttribute('srcdoc');
+            iframe.src = targetUrl;
+
+            iframe.onload = () => {
+                loadingOverlay.classList.add('opacity-0');
+                setTimeout(() => loadingOverlay.classList.add('hidden'), 300);
+                document.getElementById('ramSizeBadge').innerText = `Mode: Direct iFrame`;
+                document.getElementById('ramUsageStats').innerText = `Direct Connection`;
+            };
+
+            iframe.onerror = () => {
+                showError('ไม่สามารถโหลด iFrame โดยตรงได้ ลองสลับเป็นโหมด RAM Fetch');
+            };
+        }
+
+        /*
+         * ฟังก์ชันดึงไฟล์ HTML ทั้งหมดเข้ามาเก็บใน RAM เพื่อแก้ปัญหา Content-Disposition: attachment 
+         */
+        async function loadHtmlToRam(forceProxy = false) {
+            let targetUrl = currentUrl;
+
+            document.getElementById('headerExternalBtn').href = targetUrl;
+            document.getElementById('errorExternalBtn').href = targetUrl;
+            document.getElementById('displayDescription').innerText = targetUrl;
+
+            // Reset overlays
+            loadingOverlay.classList.remove('hidden', 'opacity-0');
+            errorOverlay.classList.add('hidden');
+            document.getElementById('loadingStepText').innerText = forceProxy ? 'กำลังดึงโค้ดผ่าน CORS Proxy...' : 'กำลังดาวน์โหลดไฟล์ลง RAM...';
+            document.getElementById('loadingSubText').innerText = targetUrl;
+
+            try {
+                let fetchUrl = targetUrl;
+                if (forceProxy) {
+                    fetchUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+                }
+
+                const response = await fetch(fetchUrl);
+                
+                if (!response.ok && !forceProxy) {
+                    console.warn('Direct fetch failed, trying proxy...');
+                    return loadHtmlToRam(true);
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                const rawHtml = await response.text();
+                cachedHtmlContent = rawHtml;
+
+                const sizeKb = (new Blob([rawHtml]).size / 1024).toFixed(2);
+                document.getElementById('ramSizeBadge').innerText = `RAM: ${sizeKb} KB`;
+                document.getElementById('ramUsageStats').innerText = `Loaded in RAM: ${sizeKb} KB`;
+                document.getElementById('rawCodeArea').value = rawHtml;
+
+                let processedHtml = rawHtml;
+                const baseUrl = targetUrl.substring(0, targetUrl.lastIndexOf('/') + 1);
+
+                if (processedHtml.includes('<head>')) {
+                    processedHtml = processedHtml.replace('<head>', `<head><base href="${baseUrl}">`);
+                } else if (processedHtml.includes('<HEAD>')) {
+                    processedHtml = processedHtml.replace('<HEAD>', `<HEAD><base href="${baseUrl}">`);
+                } else {
+                    processedHtml = `<base href="${baseUrl}">` + processedHtml;
+                }
+
+                renderInIframe(processedHtml);
+                showToast(`โหลดโค้ดเข้า RAM สำเร็จ (${sizeKb} KB)`, 'success');
+
+            } catch (err) {
+                console.error('Fetch error:', err);
+                if (!forceProxy) {
+                    return loadHtmlToRam(true);
+                }
+                showError(`ไม่สามารถดึงไฟล์เข้า RAM ได้: ${err.message}`);
+            }
+        }
+
+        function renderInIframe(htmlContent) {
+            document.getElementById('loadingStepText').innerText = 'กำลังสร้าง Blob และเรนเดอร์...';
+
+            // ล้าง Blob เก่าออกจากหน่วยความจำ
+            if (blobObjectUrl) {
+                URL.revokeObjectURL(blobObjectUrl);
+            }
+
+            try {
+                // วิธีที่ 1: ใช้ srcdoc
+                iframe.srcdoc = htmlContent;
+
+                // ซ่อน Loading Overlay
+                setTimeout(() => {
+                    loadingOverlay.classList.add('opacity-0');
+                    setTimeout(() => loadingOverlay.classList.add('hidden'), 300);
+                }, 300);
+
+            } catch (e) {
+                // วิธีที่ 2 (Fallback): ใช้ Blob URL
+                const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+                blobObjectUrl = URL.createObjectURL(blob);
+                iframe.src = blobObjectUrl;
+
+                iframe.onload = () => {
+                    loadingOverlay.classList.add('opacity-0');
+                    setTimeout(() => loadingOverlay.classList.add('hidden'), 300);
+                };
+            }
+        }
+
+        function reRenderFromRam() {
+            if (!cachedHtmlContent) {
+                loadHtmlToRam();
+                return;
+            }
+            loadingOverlay.classList.remove('hidden', 'opacity-0');
+            const baseUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/') + 1);
+            let processedHtml = cachedHtmlContent;
+            if (!processedHtml.includes('<base')) {
+                processedHtml = `<base href="${baseUrl}">` + processedHtml;
+            }
+            renderInIframe(processedHtml);
+            showToast('เรนเดอร์หน้าเว็บใหม่จาก RAM แล้ว', 'info');
+        }
+
+        function setDeviceMode(mode) {
+            const btnFull = document.getElementById('btnDeviceFull');
+            const btnTablet = document.getElementById('btnDeviceTablet');
+            const btnMobile = document.getElementById('btnDeviceMobile');
+            const resBadge = document.getElementById('resolutionBadge');
+
+            [btnFull, btnTablet, btnMobile].forEach(btn => {
+                btn.className = "px-2.5 py-1 rounded text-gray-400 hover:text-white transition flex items-center gap-1.5";
+            });
+
+            if (mode === 'full') {
+                deviceWrapper.style.width = '100%';
+                deviceWrapper.style.height = 'auto';
+                btnFull.className = "px-2.5 py-1 rounded text-emerald-400 bg-gray-800 font-medium transition flex items-center gap-1.5";
+                resBadge.innerText = "100% (Responsive)";
+            } else if (mode === 'tablet') {
+                deviceWrapper.style.width = '768px';
+                deviceWrapper.style.height = 'auto';
+                btnTablet.className = "px-2.5 py-1 rounded text-emerald-400 bg-gray-800 font-medium transition flex items-center gap-1.5";
+                resBadge.innerText = "768px (Tablet)";
+            } else if (mode === 'mobile') {
+                deviceWrapper.style.width = '375px';
+                deviceWrapper.style.height = 'auto';
+                btnMobile.className = "px-2.5 py-1 rounded text-emerald-400 bg-gray-800 font-medium transition flex items-center gap-1.5";
+                resBadge.innerText = "375px (Mobile)";
+            }
+        }
+
+        function toggleBackground() {
+            if (viewport.classList.contains('transparent-grid')) {
+                viewport.classList.remove('transparent-grid');
+                viewport.classList.add('solid-dark');
+                showToast('เปลี่ยนเป็นพื้นหลังดำสนิท', 'info');
+            } else {
+                viewport.classList.remove('solid-dark');
+                viewport.classList.add('transparent-grid');
+                showToast('เปลี่ยนเป็นพื้นหลังตาราง PNG', 'info');
+            }
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                deviceWrapper.requestFullscreen().catch(() => {
+                    showToast('ไม่สามารถเข้าสู่โหมดเต็มจอได้', 'warning');
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        function toggleCodeDrawer() {
+            const drawer = document.getElementById('codeDrawer');
+            drawer.classList.toggle('hidden');
+        }
+
+        function copyRawCode() {
+            if (!cachedHtmlContent) {
+                showToast('ไม่มีโค้ดใน RAM', 'warning');
+                return;
+            }
+            const tempInput = document.createElement('textarea');
+            tempInput.value = cachedHtmlContent;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showToast('คัดลอกโค้ด HTML ใน RAM เรียบร้อย!', 'success');
+        }
+
+        function copyDirectUrl() {
+            if (!currentUrl) return;
+            const tempInput = document.createElement('input');
+            tempInput.value = currentUrl;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showToast('คัดลอก URL เรียบร้อย!', 'success');
+        }
+
+        function showError(msg) {
+            loadingOverlay.classList.add('hidden');
+            errorOverlay.classList.remove('hidden');
+            document.getElementById('errorMessage').innerText = msg;
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `px-4 py-2.5 rounded-xl shadow-xl text-xs font-medium bg-gray-900 border border-gray-700 text-gray-200 transition-all transform translate-y-2 opacity-0 duration-200 flex items-center gap-2`;
+            
+            let iconClass = 'fa-solid fa-circle-info text-emerald-400';
+            if (type === 'warning') iconClass = 'fa-solid fa-triangle-exclamation text-amber-400';
+            if (type === 'success') iconClass = 'fa-solid fa-circle-check text-teal-400';
+
+            toast.innerHTML = `<i class="${iconClass}"></i> ${message}`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.remove(), 200);
+            }, 2500);
+        }
+    </script>
+</body>
+</html>
